@@ -237,6 +237,19 @@ class Command(BaseCommand):
 under its BSD-3-Clause license. See
 `src/harica_smime/contrib/django/static/harica_smime/forge.LICENSE`.
 
+## Links
+
+### Upstream docs
+
+- <https://guides.harica.gr/en/docs/Guides/Email/IV+OV-request/>
+- <https://developer.harica.gr/>
+
+### Other clients
+
+- <https://github.com/hm-edu/harica>
+- <https://github.com/ConsortiumGARR/tcs-garr>
+- <https://gitlab.mpi-klsb.mpg.de/pcernko/tud-cert-harica/>
+
 ## License
 
 EUPL-1.2. See [LICENSE](./LICENSE).
