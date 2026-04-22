@@ -2,15 +2,7 @@
 
 HARICA S/MIME REST client library.
 
-## Install
-
-```bash
-pip install -e path/to/harica_smime
-```
-
-Runtime dependencies: `cryptography` only
-
-## What's in the box
+## About
 
 - **Core library** (`harica_smime.*`) — the HARICA REST client and its
   supporting types: `Client`, `CertificateType`, the exception hierarchy,
@@ -20,6 +12,14 @@ Runtime dependencies: `cryptography` only
   smoke-test harness (`contrib.smoke`), and a Django app that ships the
   browser-side JavaScript for client-side keypair/CSR generation
   (`contrib.django`).
+
+## Requirements
+
+- Python 3.11+
+- Runtime dependencies: [`cryptography`](https://github.com/pyca/cryptography/) only (will be pulled in by the `pip` installation, see below)
+- [HARICA](https://harica.gr/) credentials:
+    - HARICA username/password
+    - HARICA 2FA TOTP seed
 
 ## Privacy contract
 
@@ -32,6 +32,12 @@ server. Your server-side code then calls `Client.bulk_smime_certificate(csr,
 
 Do **not** generate CSRs server-side for user-facing flows — that defeats the
 property.
+
+## Install
+
+```bash
+pip install harica-smime@git+https://github.com/tombreit/harica-smime.git
+```
 
 ## Quickstart (server-side)
 
@@ -125,7 +131,7 @@ user's device.
 ### 1. Install and register the app
 
 ```bash
-pip install "harica-smime[django]"
+pip install harica-smime[django]@git+https://github.com/tombreit/harica-smime.git
 ```
 
 ```python
@@ -136,9 +142,7 @@ INSTALLED_APPS = [
 ]
 ```
 
-The app's label is `harica_smime` (not `harica_smime.contrib.django`).
-Django's `AppDirectoriesFinder` picks up the bundled static files under the
-`harica_smime/` prefix — no `STATICFILES_DIRS` entry required.
+The app's label is `harica_smime`. Django's `AppDirectoriesFinder` picks up the bundled static files under the `harica_smime/` prefix.
 
 ### 2. Load the JavaScript in your template
 
