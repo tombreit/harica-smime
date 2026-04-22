@@ -1,6 +1,10 @@
 # harica-smime
 
-HARICA S/MIME REST client library.
+`harica-smime` is a Python client for issuing S/MIME email-signing certificates
+through HARICA's REST API. It is built around a privacy contract: the keypair is
+generated in the user's browser, so your server only ever handles the CSR and
+the signed certificate — the private key and PKCS#12 password never leave the
+user's device.
 
 ## About
 
@@ -16,10 +20,11 @@ HARICA S/MIME REST client library.
 ## Requirements
 
 - Python 3.11+
-- Runtime dependencies: [`cryptography`](https://github.com/pyca/cryptography/) only (will be pulled in by the `pip` installation, see below)
-- [HARICA](https://harica.gr/) credentials:
-    - HARICA username/password
-    - HARICA 2FA TOTP seed
+- Runtime dependencies: [`cryptography`](https://github.com/pyca/cryptography/)
+  only (will be pulled in by the `pip` installation, see below)
+- [HARICA](https://harica.gr/) API credentials:
+  - HARICA username/password
+  - HARICA 2FA TOTP seed
 
 ## Privacy contract
 
@@ -142,7 +147,8 @@ INSTALLED_APPS = [
 ]
 ```
 
-The app's label is `harica_smime`. Django's `AppDirectoriesFinder` picks up the bundled static files under the `harica_smime/` prefix.
+The app's label is `harica_smime`. Django's `AppDirectoriesFinder` picks up the
+bundled static files under the `harica_smime/` prefix.
 
 ### 2. Load the JavaScript in your template
 
