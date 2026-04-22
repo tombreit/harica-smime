@@ -1,0 +1,249 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>harica-smime demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="{% static 'harica_smime/forge.min.js' %}"></script>
+  <script src="{% static 'harica_smime/harica-smime-crypto.js' %}"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    .log-line { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800">
+  <div class="mx-auto max-w-3xl px-6 py-10">
+
+    <header class="mb-8">
+      <h1 class="text-3xl font-bold tracking-tight text-slate-900">harica-smime demo</h1>
+      <p class="mt-2 text-slate-600">
+        Generate an S/MIME keypair in your browser, submit only the CSR to the
+        server, and assemble the signed PKCS#12 locally. The private key and
+        PKCS#12 password never leave this page.
+      </p>
+    </header>
+
+    {% if mode == "staging" %}
+      <div class="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+        <p class="font-semibold text-emerald-900">Mode: HARICA staging</p>
+        <p class="mt-1 text-sm text-emerald-800">
+          CSRs submitted here are forwarded to
+          <code class="rounded bg-emerald-100 px-1 py-0.5 text-xs">{{ base_url }}</code>
+          and signed by HARICA's staging CA.
+        </p>
+      </div>
+    {% else %}
+      <div class="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <p class="font-semibold text-amber-900">Mode: local stub</p>
+        <p class="mt-1 text-sm text-amber-800">
+          No HARICA credentials configured &mdash; the server will sign your
+          CSR with a throwaway in-process CA so the browser round-trip still
+          works. Set
+          <code class="rounded bg-amber-100 px-1 py-0.5 text-xs">HARICA_USERNAME</code>,
+          <code class="rounded bg-amber-100 px-1 py-0.5 text-xs">HARICA_PASSWORD</code>
+          and
+          <code class="rounded bg-amber-100 px-1 py-0.5 text-xs">HARICA_TOTP_SEED</code>
+          and restart to exercise real staging.
+        </p>
+      </div>
+    {% endif %}
+
+    <form id="demo-form" class="space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+      {% csrf_token %}
+
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <label class="block">
+          <span class="text-sm font-medium text-slate-700">Given name</span>
+          <input type="text" name="given_name" value="Alice" required
+                 class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm">
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium text-slate-700">Surname</span>
+          <input type="text" name="surname" value="Example" required
+                 class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm">
+        </label>
+      </div>
+
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">Email</span>
+        <input type="email" name="email" value="alice@example.org" required
+               class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm">
+      </label>
+
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">
+          PKCS#12 password
+          <span class="font-normal text-slate-500">(stays in your browser)</span>
+        </span>
+        <input type="password" name="p12_password" value="changeit" required
+               class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 sm:text-sm">
+      </label>
+
+      <button type="submit" id="submit-btn"
+              class="inline-flex w-full items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400">
+        Generate keypair &amp; download .p12
+      </button>
+    </form>
+
+    <section class="mt-6 rounded-lg border border-slate-200 bg-slate-900 p-4 text-slate-100 shadow-sm">
+      <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-slate-300">Activity log</h2>
+      <ol id="log" class="log-line space-y-1 text-xs text-slate-200">
+        <li class="text-slate-400">Waiting for you to submit the form&hellip;</li>
+      </ol>
+    </section>
+
+    <footer class="mt-10 border-t border-slate-200 pt-6 text-xs text-slate-500">
+      See the
+      <a href="https://github.com/tombreit/harica-smime" class="underline hover:text-slate-700">
+        project README
+      </a>
+      for the full privacy-contract write-up and the server-side integration
+      snippets this page is a visual demonstration of.
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const form = document.getElementById('demo-form');
+      const logEl = document.getElementById('log');
+      const submitBtn = document.getElementById('submit-btn');
+
+      function log(message, tone) {
+        if (logEl.children.length === 1 && logEl.firstElementChild.classList.contains('text-slate-400')) {
+          logEl.innerHTML = '';
+        }
+        const li = document.createElement('li');
+        const palette = {
+          info: 'text-slate-200',
+          ok:   'text-emerald-300',
+          warn: 'text-amber-300',
+          err:  'text-rose-300',
+        };
+        li.className = palette[tone || 'info'];
+        const ts = new Date().toISOString().slice(11, 23);
+        li.textContent = `[${ts}] ${message}`;
+        logEl.appendChild(li);
+      }
+
+      function csrfToken() {
+        const el = form.querySelector('input[name=csrfmiddlewaretoken]');
+        return el ? el.value : '';
+      }
+
+      function binaryStringToBlob(bin) {
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i) & 0xff;
+        return new Blob([bytes], { type: 'application/x-pkcs12' });
+      }
+
+      function downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        submitBtn.disabled = true;
+
+        const data = new FormData(form);
+        const email      = data.get('email').trim();
+        const givenName  = data.get('given_name').trim();
+        const surname    = data.get('surname').trim();
+        const p12Password = data.get('p12_password');
+
+        let keys;
+        try {
+          log('Generating RSA-2048 keypair in the browser…', 'info');
+          keys = haricaSmime.generateKeypair(2048);
+          log('Keypair generated — private key is in-page memory only.', 'ok');
+        } catch (exc) {
+          log('Keypair generation failed: ' + exc.message, 'err');
+          submitBtn.disabled = false;
+          return;
+        }
+
+        let csrPem;
+        try {
+          csrPem = haricaSmime.buildCsrPem({
+            publicKey:  keys.publicKey,
+            privateKey: keys.privateKey,
+            commonName: (givenName + ' ' + surname).trim(),
+            email:      email,
+          });
+          log('CSR built and signed locally (public half only).', 'ok');
+        } catch (exc) {
+          log('CSR build failed: ' + exc.message, 'err');
+          submitBtn.disabled = false;
+          return;
+        }
+
+        log('POST /submit-csr/ — sending CSR only, no private key, no password.', 'info');
+        let response, body;
+        try {
+          response = await fetch('/submit-csr/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken':  csrfToken(),
+            },
+            body: JSON.stringify({
+              csr:         csrPem,
+              email:       email,
+              given_name:  givenName,
+              surname:     surname,
+            }),
+          });
+          body = await response.json();
+        } catch (exc) {
+          log('Network error: ' + exc.message, 'err');
+          submitBtn.disabled = false;
+          return;
+        }
+
+        if (!response.ok) {
+          log('Server returned ' + response.status + ': ' + (body.error || 'unknown error'), 'err');
+          submitBtn.disabled = false;
+          return;
+        }
+
+        const modeLabel = body.mode === 'staging' ? 'HARICA staging' : 'local stub CA';
+        log('Signed leaf received from ' + modeLabel + ' (' + body.certs.length + ' PEM block(s)).', 'ok');
+
+        let p12Bytes;
+        try {
+          p12Bytes = haricaSmime.buildPkcs12Bytes({
+            certPem:      body.certs[0],
+            privateKey:   keys.privateKey,
+            password:     p12Password,
+            friendlyName: (givenName + ' ' + surname).trim(),
+          });
+          log('PKCS#12 assembled in the browser. Triggering download…', 'ok');
+        } catch (exc) {
+          log('PKCS#12 assembly failed: ' + exc.message, 'err');
+          submitBtn.disabled = false;
+          return;
+        }
+
+        const filename = email.replace(/[^A-Za-z0-9._-]+/g, '_') + '.p12';
+        downloadBlob(binaryStringToBlob(p12Bytes), filename);
+
+        // Drop the private key reference so it isn't lingering in memory.
+        keys.privateKey = null;
+        keys = null;
+        log('Private key reference dropped. Open the downloaded .p12 to inspect it.', 'ok');
+
+        submitBtn.disabled = false;
+      });
+    })();
+  </script>
+</body>
+</html>

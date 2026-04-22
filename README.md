@@ -16,6 +16,8 @@ user's device.
   smoke-test harness (`contrib.smoke`), and a Django app that ships the
   browser-side JavaScript for client-side keypair/CSR generation
   (`contrib.django`).
+- **Demo application** — A single-page Django project,
+  see [`example/`](./example/README.md).
 
 ## Requirements
 
