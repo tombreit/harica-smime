@@ -214,11 +214,20 @@ const p12Bytes = haricaSmime.buildPkcs12Bytes({
   certPem:      certPem,                   // from the server response
   privateKey:   keys.privateKey,           // still in JS memory, never sent
   password:     userChosenP12Password,     // collected in the browser
-  friendlyName: "Alice Example",
+  friendlyName: haricaSmime.friendlyNameFromCert(certPem),
 });
 // Binary string — wrap in a Blob, trigger a download, then drop
 // keys.privateKey from memory.
 ```
+
+`friendlyNameFromCert` reads the friendlyName straight from the issued
+cert's subject — the CN for `natural_legal_lcp` (the person's name), the
+`emailAddress` for `email_only`. Pulling it from the cert keeps the
+PKCS#12 friendlyName in sync with the cert's actual subject; deriving it
+from form fields can drift when the requester and the certificate
+subject aren't the same person (shared mailboxes, delegated requests).
+`buildPkcs12Bytes` requires `friendlyName` — pass the helper's result
+unless you have a reason to override.
 
 The PKCS#12 password is user-chosen in the browser and must never reach
 your server.

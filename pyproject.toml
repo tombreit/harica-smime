@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "harica-smime"
-version = "0.1.0"
+version = "0.1.1"
 description = "HARICA S/MIME REST client library"
 authors = [{name = "Thomas Breitner", email = "mail@thms.de"}]
 readme = "README.md"
